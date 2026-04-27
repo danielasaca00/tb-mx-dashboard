@@ -2,11 +2,9 @@
 
 #PAGE CONFIGURATION
 import streamlit as st  #Website interface
-import plotly.express as px #Interactive graphs
 import plotly.graph_objects as go #Interactive graphs
-import pandas as pd #Manage data tables
-from db import get_resistance_profile, get_drug_resistance_counts, get_data_overview #Neo4j connection
-from utils import render_sidebar #For sidebar
+from db import get_data_overview #Neo4j connection
+from utils import render_sidebar, render_footer #For sidebar
 
 #Page Title
 st.set_page_config(page_title="SVG-TB-MX", page_icon="🫁", layout="wide", initial_sidebar_state="expanded")
@@ -43,22 +41,26 @@ h1, h2, h3, .kpi-value {
 .kpi-card {
     background: #CBCDD1;
     border-radius: 12px;
-    padding: 20px 24px;
+    padding: clamp(8px, 1.2vw, 20px) clamp(6px, 1vw, 24px);
     text-align: center;
+    overflow: hidden;
 }
 .kpi-value {
     font-family: Inter, sans-serif;
-    font-size: 2.8rem;
+    font-size: clamp(1rem, 2vw, 2.8rem);
     font-weight: 800;
     line-height: 1;
     margin-bottom: 4px;
+    word-break: break-word;
 }
 .kpi-label {
-    font-size: 0.9rem;
-    letter-spacing: 0.12em;
+    font-size: clamp(0.55rem, 0.75vw, 0.9rem);
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #6b7f93;
+    word-break: break-word;
 }
+
 /* Section headers */
 .section-header {
     font-family: 'Syne', sans-serif;
@@ -88,9 +90,23 @@ st.markdown("""
         Tuberculosis en México : Vigilancia Genómica
     </h1>
     <p style='color:#4a6278;font-size:1.1rem;margin-bottom:0'>
-        Sistema de vigilancina genómica de Mycobacterium tuberculosis en México a través de la integración de 
-        información disponible en NCBI y la implementacion de TB Profiler para el análisis genómico. Modelado realizado
+        Sistema de vigilancia genómica de <i>Mycobacterium tuberculosis</i> en México a través de la integración de 
+        información disponible en <a href="https://www.ncbi.nlm.nih.gov/" target="_blank" style="color:#2E86C1; 
+        text-decoration:none;">NCBI</a> y la implementacion de <a href="https://tbdr.lshtm.ac.uk/" target="_blank" 
+        style="color:#2E86C1; text-decoration:none;">TB Profiler</a> para el análisis genómico. Modelado realizado
         en Neo4j y desarrollo de página web haciendo uso de Streamlit.
+    </p>
+""", unsafe_allow_html=True)
+
+# OBTENCION DE DATOS
+st.markdown("<div class='section-header'>Obtención y análisis de datos</div>", unsafe_allow_html=True)
+st.markdown("""
+    <p style='color:#4a6278;font-size:1.1rem;margin-bottom:0'>
+        1. Obtención de datos desde NCBI, aplicando filtros específicos para obtener muestras de Mtb proveniente de México  <br>
+        2. Extracción de metadata relevante y accesos a SRA <br>
+        3. Análisis genómico de SRA disponibles implemetando TB Profiler <br>
+        4. Integración de metadata y resultados como nodos y relaciones para insertar en Neo4j <br>
+        5. Análisis y visualización de datos a partir de queries <br>
     </p>
 """, unsafe_allow_html=True)
 
@@ -201,86 +217,5 @@ with ov_right:
     </div>
     """, unsafe_allow_html=True)
 
-#Resistance Profile
-st.markdown("<div class='section-header'>Perfil de Resistencia</div>", unsafe_allow_html=True)
-
-col_left, col_right = st.columns([1, 1.6])
-
-with col_left:
-    res_data = get_resistance_profile()
-    df_res = pd.DataFrame(res_data)
-    color_map = {
-        "Sensitive"  : "#22c55e",
-        "HR-TB"      : "#facc15",
-        "MDR-TB"     : "#f97316",
-        "RR-TB"      : "#fb923c",
-        "Pre-XDR-TB" : "#ef4444",
-        "XDR-TB"     : "#dc2626",
-        "Other"      : "#64748b",
-        "Low_coverage": "#334155",
-    }
-    fig = px.pie(
-        df_res, values="count", names="drtype",
-        color="drtype", color_discrete_map=color_map,
-        hole=0.55,
-    )
-    fig.update_traces(
-        textposition="outside",
-        textfont_size=11,
-        marker=dict(line=dict(color="#3B3838", width=2)),
-    )
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#000000", family="Inter"),
-        legend=dict(
-            orientation="v", bgcolor="rgba(0,0,0,0)",
-            font=dict(size=11),
-        ),
-        margin=dict(t=30, b=30, l=30, r=30),
-        height=420,
-        annotations=[dict(
-            text=f"<b>{df_res['count'].sum()}</b><br>muestras",
-            x=0.5, y=0.5, font_size=14, font_color="#000000",
-            showarrow=False,
-        )],
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-#Drug counts
-with col_right:
-    drug_data = get_drug_resistance_counts()
-    df_drug = pd.DataFrame(drug_data)
-    class_colors = {
-        "1st_line"           : "#f87171",
-        "fluoroquinolone"    : "#fb923c",
-        "group_A"            : "#e879f9",
-        "group_B"            : "#a78bfa",
-        "2nd_line_injectable": "#60a5fa",
-        "1st_line_injectable": "#f59e0b",
-        "other"              : "#64748b",
-    }
-    df_drug["color"] = df_drug["drug_class"].map(class_colors).fillna("#F20707")
-    fig2 = go.Figure(go.Bar(
-        x=df_drug["count"],
-        y=df_drug["drug"],
-        orientation="h",
-        marker_color=df_drug["color"],
-        text=df_drug["count"],
-        textposition="outside",
-        textfont=dict(color="#000000", size=11),
-    ))
-    fig2.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#000000", family="Inter"),
-        xaxis=dict(showgrid=True, gridcolor="#969090"),
-        yaxis=dict(showgrid=False, autorange="reversed"),
-        margin=dict(t=10, b=10, l=10, r=60),
-        height=360,
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
 # Footer
-st.markdown("---")
-st.caption("2026 · Datos públicos NCBI ")
+render_footer()

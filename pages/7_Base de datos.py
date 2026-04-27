@@ -1,9 +1,10 @@
 #Pages/6_Database
 
 import streamlit as st
-from utils import render_sidebar #For sidebar
+from utils import render_sidebar, render_footer #For sidebar
 from neo4j import GraphDatabase
 import pandas as pd #dataframes
+
 
 st.set_page_config(page_title="Base de datos", page_icon="x", layout="wide",initial_sidebar_state="expanded")
 
@@ -24,19 +25,21 @@ h1,h2,h3 { font-family: 'Inter', sans-serif !important; }
     background: #ffffff;
     border: 1px solid #d1dae3;
     border-radius: 8px;
-    padding: 20px 24px;
+    padding: clamp(8px, 1.2vw, 20px) clamp(6px, 1vw, 24px);
+    overflow: hidden;
     text-align: center;
 }
 .stat-number {
     font-family: 'Inter', sans-serif;
-    font-size: 2rem;
+    font-size: clamp(1rem, 1.8vw, 2rem);
+    word-break: break-word;
     font-weight: 700;
     color: #000000;
     line-height: 1;
 }
 .stat-label {
     font-family: 'Inter', sans-serif;
-    font-size: 0.72rem;
+    font-size: clamp(0.55rem, 0.7vw, 0.72rem);
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #4a6278;
@@ -211,7 +214,5 @@ ORDER BY c.size DESC""", language="cypher")
 RETURN m.gene, m.aa_change, count(r) AS n
 ORDER BY n DESC LIMIT 10""", language="cypher")
 
-
-
-st.markdown("")
-st.caption("2026 · Datos públicos NCBI")
+# Footer
+render_footer()

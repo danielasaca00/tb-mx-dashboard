@@ -5,7 +5,7 @@ import streamlit as st  #Website interface
 import plotly.express as px #Interactive graphs
 import pandas as pd #Manage data tables
 from db import get_samples_table, get_states, get_drtypes, get_years #Neo4j connection to get data
-from utils import render_sidebar #For sidebar
+from utils import render_sidebar, render_footer #For sidebar
 
 #Page title
 st.set_page_config(page_title="Muestras · TB México", page_icon="", layout="wide",initial_sidebar_state="expanded")
@@ -175,6 +175,5 @@ with ch2:
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-#Footer
-st.markdown("---")
-st.caption("2026 · Datos públicos NCBI ")
+# Footer
+render_footer()

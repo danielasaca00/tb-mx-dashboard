@@ -6,7 +6,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 from db import get_top_dr_mutations, get_mutation_network
-from utils import render_sidebar #For sidebar
+from utils import render_sidebar, render_footer #For sidebar
 
 
 st.set_page_config(page_title="Mutaciones · TB México", page_icon="", layout="wide", initial_sidebar_state="expanded")
@@ -236,5 +236,5 @@ with st.expander("Ver tabla completa de mutaciones DR"):
         }),
         use_container_width=True, hide_index=True,
     )
-st.markdown("---")
-st.caption("2026 · Datos públicos NCBI ")
+# Footer
+render_footer()

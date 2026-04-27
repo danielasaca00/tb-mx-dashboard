@@ -5,7 +5,7 @@ import streamlit as st  #Website interface
 import plotly.graph_objects as go #Interactive graphs
 import pandas as pd #Manage data tables
 from db import get_cases_by_state #Neo4j connection, get data grouped by state
-from utils import render_sidebar #For sidebar
+from utils import render_sidebar, render_footer #For sidebar
 
 
 #Page Title
@@ -31,14 +31,16 @@ h1,h2,h3 { font-family: 'Inter', sans-serif !important; }
 render_sidebar()
 
 #Header
-st.markdown("<h1 style='font-family:Inter;color:#000000;font-size:1.8rem'> Distribución Geográfica</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#4a6278'>Muestras por estado</p>", unsafe_allow_html=True)
+st.markdown("<h1 style='font-family:Inter;color:#000000;font-size:1.8rem'> Distribución Territorial de Tuberculosis </h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#4a6278'>Mapa interactivo que muestra la distribución geográfica de muestras de tuberculosis por estado, con filtros para visualizar casos totales, MDR y XDR.</p>", unsafe_allow_html=True)
 
 #BLOCK 1: MAP DISTRIBUTION
 #Dropdown Menu
-col_ctrl1,_ = st.columns([1, 4])
-with col_ctrl1:
-    metric = st.selectbox("Métrica", ["Total de muestras", "Casos MDR", "Casos XDR"])
+metric = st.radio(
+    "Métrica",
+    options=["Total de muestras", "Casos MDR", "Casos XDR"],
+    horizontal= True
+    )
 
 colorscale = "YlOrRd"
 
@@ -133,6 +135,5 @@ st.dataframe(
     }
 )
 
-#Footer
-st.markdown("---")
-st.caption("2026 · Datos públicos NCBI ")
+# Footer
+render_footer()

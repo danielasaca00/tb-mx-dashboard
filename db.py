@@ -1,8 +1,3 @@
-"""
-db.py — Neo4j connection + all queries for the TB dashboard.
-All functions return plain Python lists/dicts — no Neo4j objects leak out.
-"""
-
 import streamlit as st
 from neo4j import GraphDatabase
 
@@ -105,7 +100,9 @@ def get_resistance_profile() -> list[dict]:
     return query("""
         MATCH (s:SRARun)
         WHERE s.drtype IS NOT NULL AND s.drtype <> '' AND s.drtype <> 'Low_coverage'
-        RETURN s.drtype AS drtype, count(s) AS count
+        RETURN 
+        CASE WHEN s.is_mtb = 'No' THEN 'No-Mtb' ELSE s.drtype END AS drtype,
+            count(s) AS count
         ORDER BY count DESC
     """)
 
@@ -240,13 +237,12 @@ def get_data_overview() -> dict:
         MATCH (s:SRARun)
         WHERE s.qc_pass IS NOT NULL
         RETURN
-            count(s)                                                                      AS runs_processed,
-            sum(CASE WHEN s.qc_pass = 'PASS'
-                      AND s.is_mtb = 'Yes' THEN 1 ELSE 0 END)                            AS qc_pass,
-            sum(CASE WHEN s.qc_pass = 'FAIL'            THEN 1 ELSE 0 END)               AS qc_fail_real,
-            sum(CASE WHEN s.is_mtb  = 'No'              THEN 1 ELSE 0 END)               AS no_mtb,
-            sum(CASE WHEN s.is_mdr  = 'Yes'             THEN 1 ELSE 0 END)               AS mdr,
-            sum(CASE WHEN s.is_xdr  = 'Yes'             THEN 1 ELSE 0 END)               AS xdr
+            count(s)                                                  AS runs_processed,
+            sum(CASE WHEN s.qc_pass = 'PASS' THEN 1 ELSE 0 END)      AS qc_pass,
+            sum(CASE WHEN s.qc_pass = 'FAIL' THEN 1 ELSE 0 END)      AS qc_fail_real,
+            sum(CASE WHEN s.is_mtb  = 'No'   THEN 1 ELSE 0 END)      AS no_mtb,
+            sum(CASE WHEN s.is_mdr  = 'Yes'  THEN 1 ELSE 0 END)      AS mdr,
+            sum(CASE WHEN s.is_xdr  = 'Yes'  THEN 1 ELSE 0 END)      AS xdr
     """)[0]
 
     total_biosamples = bs["total_biosamples"]

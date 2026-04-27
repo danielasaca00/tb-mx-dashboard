@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 from db import get_lineage_dist, get_cases_by_state, query
-from utils import render_sidebar #For sidebar
+from utils import render_sidebar, render_footer #For sidebar
 
 st.set_page_config(page_title="Linajes · TB México", page_icon="", layout="wide",initial_sidebar_state="expanded")
 
@@ -33,13 +33,13 @@ st.markdown("<h1 style='font-family:Syne;color:#000000;font-size:1.8rem'> Distri
 st.markdown("<p style='color:#4a6278'>Filogenia y distribución geográfica de linajes de M. tuberculosis en México</p>", unsafe_allow_html=True)
 
 lineage_colors = {
-    "lineage1": "#3b82f6",
+    "lineage1": "#A327F5",
     "lineage2": "#f59e0b",
     "lineage3": "#22c55e",
     "lineage4": "#00d4ff",
     "lineage5": "#a78bfa",
     "lineage6": "#f87171",
-    "La1"     : "#fb923c",
+    "La1"     : "#F54927",
     "La2"     : "#e879f9",
 }
 
@@ -48,6 +48,10 @@ st.markdown("<div class='section-header'>Distribución Global</div>", unsafe_all
 
 lin_data = get_lineage_dist()
 df_lin = pd.DataFrame(lin_data)
+df_lin["lineage"] = df_lin["lineage"].apply(
+    lambda x: x.split(";")[0] if isinstance(x, str) and ";" in x else x
+)
+df_lin = df_lin.groupby("lineage", as_index=False).agg({"count": "sum"})
 
 # Ensure optional columns exist so downstream code does not KeyError
 if "description" not in df_lin.columns:
@@ -78,7 +82,7 @@ with col1:
         margin=dict(t=30, b=30, l=0, r=0),
         height=500,
         annotations=[dict(
-            text=f"<b>{df_lin['count'].sum()}</b><br>muestras",
+            text=f"<b>{df_lin['count'].sum()}</b><br>genomas",
             x=0.5, y=0.5, font_size=13, font_color="#000000", showarrow=False,
         )],
     )
@@ -112,53 +116,6 @@ with col2:
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-# ── Lineage by state ──────────────────────────────────────────────────
-st.markdown("<div class='section-header'>Linajes por Estado</div>", unsafe_allow_html=True)
-
-@st.cache_data(ttl=3600)
-def get_lineage_by_state():
-    return query("""
-        MATCH (s:Sample)-[:BELONGS_TO]->(lin:Lineage),
-              (s)-[:COLLECTED_IN]->(l:Location)
-        WHERE l.state <> ''
-        RETURN l.state AS state, lin.top_level AS lineage, count(s) AS n
-        ORDER BY state, n DESC
-    """)
-
-state_lin_data = get_lineage_by_state()
-df_sl = pd.DataFrame(state_lin_data)
-
-if not df_sl.empty:
-    normalize_state = st.checkbox("Normalizar por estado (%)", value=True)
-
-    if normalize_state:
-        df_plot = df_sl.copy()
-        totals = df_plot.groupby("state")["n"].transform("sum")
-        df_plot["n"] = df_plot["n"] / totals * 100
-    else:
-        df_plot = df_sl
-
-    fig_state = px.bar(
-        df_plot, x="state", y="n", color="lineage",
-        color_discrete_map=lineage_colors,
-        barmode="stack",
-        labels={"n": "Muestras", "state": "Estado", "lineage": "Linaje"},
-    )
-    fig_state.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#c9d8e8", family="Inter"),
-        xaxis=dict(showgrid=False, color="#4a6278", tickangle=-35),
-        yaxis=dict(
-            showgrid=True, gridcolor="#1e2d3d", color="#4a6278",
-            title="Proporción (%)" if normalize_state else "Muestras",
-        ),
-        legend=dict(orientation="h", y=1.05, bgcolor="rgba(0,0,0,0)", font=dict(size=11)),
-        margin=dict(t=40, b=100, l=60, r=20),
-        height=420,
-    )
-    st.plotly_chart(fig_state, use_container_width=True)
-
 # ── Lineage detail table ──────────────────────────────────────────────
 st.markdown("<div class='section-header'>Detalle de Linajes</div>", unsafe_allow_html=True)
 
@@ -174,5 +131,5 @@ st.dataframe(
         ),
     }
 )
-st.markdown("---")
-st.caption("2026 · Datos públicos NCBI ")
+# Footer
+render_footer()

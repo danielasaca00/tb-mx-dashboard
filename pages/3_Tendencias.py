@@ -6,7 +6,7 @@ import plotly.express as px #Interactive graphs
 import plotly.graph_objects as go #Interactive graphs
 import pandas as pd #Manage data tables
 from db import get_mdr_trend, get_lineage_by_year #Neo4j connection to get data
-from utils import render_sidebar #For sidebar
+from utils import render_sidebar, render_footer #For sidebar
 
 #Page title
 st.set_page_config(page_title="Tendencias · TB México", page_icon="", layout="wide",initial_sidebar_state="expanded")
@@ -175,6 +175,5 @@ with st.expander("Ver datos crudos de tendencias"):
         use_container_width=True, hide_index=True
     )
 
-#Footer
-st.markdown("---")
-st.caption("2026 · Datos públicos NCBI ")
+# Footer
+render_footer()
