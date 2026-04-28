@@ -205,7 +205,19 @@ h2, h3 {
     font-family: 'Poppins', sans-serif !important;
     color: #1B3A2D !important;
 }
-
+/* ── Dataframe / tabla ───────────────────────────────────────────── */
+[data-testid="stDataFrame"] *,
+[data-testid="stDataFrame"] .dvn-scroller *,
+.ag-root-wrapper * {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 0.78rem !important;
+}
+[data-testid="stDataFrame"] .ag-header-cell-label {
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    color: #3D5A4D !important;
+}
 </style>"""
 
 # ── Page registry ─────────────────────────────────────────────────────
