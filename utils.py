@@ -240,7 +240,7 @@ def render_topnav(current_page: str = "Inicio"):
 
     # ── Navigation bar ────────────────────────────────────────────────
     items = "".join(
-        f'<a href="{url}" target="_top" class="{"active" if label == current_page else ""}">{label}</a>'
+        f'<a href="{url}" target="_self" class="{"active" if label == current_page else ""}">{label}</a>'
         for label, url in _PAGES
     )
     st.markdown(f'<nav class="topnav">{items}</nav>', unsafe_allow_html=True)
