@@ -234,9 +234,6 @@ def render_topnav(current_page: str = "Inicio"):
             <p class="site-header-title">
                 Sistema de Vigilancia Genómica para Tuberculosis en México
             </p>
-            <p class="site-header-sub">
-                SVG-TB-MX &nbsp;·&nbsp; Neo4j &nbsp;·&nbsp; TB-Profiler v6 &nbsp;·&nbsp; NCBI SRA
-            </p>
         </div>
     </div>
     """, unsafe_allow_html=True)
