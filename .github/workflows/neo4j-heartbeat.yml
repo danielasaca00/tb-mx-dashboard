@@ -1,0 +1,28 @@
+name: Neo4j Heartbeat
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install neo4j driver
+        run: pip install neo4j
+
+      - name: Ping Neo4j
+        run: |
+          python - <<EOF
+          from neo4j import GraphDatabase
+
+          driver = GraphDatabase.driver(
+              "${{ secrets.NEO4J_URI }}",
+              auth=("${{ secrets.NEO4J_USER }}", "${{ secrets.NEO4J_PASSWORD }}")
+          )
+          with driver.session() as session:
+              result = session.run("RETURN 1 AS alive")
+              print("Neo4j alive:", result.single()["alive"])
+          driver.close()
+          EOF
