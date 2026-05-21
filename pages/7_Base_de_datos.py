@@ -115,24 +115,8 @@ st.dataframe(
     }
 )
 
-# ── Access ────────────────────────────────────────────────────────────
-st.markdown("<div class='section-header'>Acceso a la base de datos</div>", unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-[data-testid="stLinkButton"] a {
-    background-color: #2D6A4F !important;
-    border-color: #2D6A4F !important;
-    color: #ffffff !important;
-}
-[data-testid="stLinkButton"] a:hover {
-    background-color: #1B3A2D !important;
-    border-color: #1B3A2D !important;
-}
-</style>
-""", unsafe_allow_html=True)
-# ── Sandbox de consultas ──────────────────────────────────────────────
-st.markdown("<div class='section-header'>Ejecutar consulta Cypher</div>", 
+# ── Neo4j Cypher ──────────────────────────────────────────────
+st.markdown("<div class='section-header'>Explorar a traves de Neo4j Cypher</div>", 
             unsafe_allow_html=True)
 
 st.markdown("""
@@ -182,8 +166,8 @@ if run_btn and user_query.strip():
 st.markdown("")
 st.link_button("Conoce más sobre Neo4j →", "https://neo4j.com/", type="secondary")
 
-# ── Example queries ───────────────────────────────────────────────────
-st.markdown("<div class='section-header'>Consultas de ejemplo</div>", unsafe_allow_html=True)
+# ── Ejemlos de consultas a traves de Neo4j cypher───────────────────────────────────────────────────
+st.markdown("<div class='section-header'>Ejemplos de consultas a traves de Neo4j cyphe/div>", unsafe_allow_html=True)
 
 q1, q2 = st.columns(2)
 with q1:
