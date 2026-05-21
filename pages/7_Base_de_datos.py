@@ -1,6 +1,5 @@
 import streamlit as st
 from utils import render_topnav, render_footer
-from neo4j import GraphDatabase
 import pandas as pd
 
 st.set_page_config(
@@ -22,16 +21,8 @@ st.markdown("""
     </p>
 """, unsafe_allow_html=True)
 
-# ── Neo4j connection ──────────────────────────────────────────────────
-NEO4J_URI      = st.secrets["NEO4J_URI"]
-NEO4J_USER     = st.secrets["NEO4J_USER"]
-NEO4J_PASSWORD = st.secrets["NEO4J_PASSWORD"]
-
-
-@st.cache_resource
-def get_driver():
-    return GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
-
+# ── Neo4j connection (shared from db.py) ──────────────────────────────
+from db import get_driver
 
 @st.cache_data(ttl=3600)
 def fetch_stats():
