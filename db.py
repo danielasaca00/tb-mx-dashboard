@@ -11,8 +11,17 @@ def get_driver():
     )
 
 
+# ── Safe read-only query wrapper ──────────────────────────────────────
+_FORBIDDEN = {"CREATE", "MERGE", "DELETE", "SET", "REMOVE",
+              "DROP", "DETACH", "CALL", "LOAD"}
+
 def query(cypher: str, params: dict = None) -> list[dict]:
-    """Run a read query and return list of dicts."""
+    """Run a read-only query and return list of dicts.
+    Raises ValueError if a write keyword is detected."""
+    upper = cypher.upper()
+    for word in _FORBIDDEN:
+        if word in upper.split():
+            raise ValueError(f"Write operation not allowed: {word}")
     driver = get_driver()
     with driver.session() as session:
         result = session.run(cypher, params or {})
@@ -20,21 +29,68 @@ def query(cypher: str, params: dict = None) -> list[dict]:
 
 
 # ══════════════════════════════════════════════════════════════════════
-# OVERVIEW — KPI cards
+# OVERVIEW — KPI cards & funnel
 # ══════════════════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600)
 def get_kpis() -> dict:
     rows = query("""
         MATCH (s:SRARun)
         RETURN
-          count(s)                                          AS total,
+          count(s)                                             AS total,
           sum(CASE WHEN s.is_mdr  = 'Yes' THEN 1 ELSE 0 END) AS mdr,
           sum(CASE WHEN s.is_xdr  = 'Yes' THEN 1 ELSE 0 END) AS xdr,
           sum(CASE WHEN s.qc_pass = 'PASS' THEN 1 ELSE 0 END) AS qc_pass
     """)
     r = rows[0]
-    r["mdr_rate"] = round(r["mdr"] / r["total"] * 100, 1) if r["total"] else 0
+    r["mdr_rate"] = round(r["mdr"] / r["qc_pass"] * 100, 1) if r["qc_pass"] else 0
     return r
+
+
+@st.cache_data(ttl=3600)
+def get_data_overview() -> dict:
+    bs = query("MATCH (b:BioSample) RETURN count(b) AS total_biosamples")[0]
+
+    sra = query("""
+        MATCH (r:SRARun)
+        RETURN
+            count(r) AS total_sra_runs,
+            sum(CASE WHEN r.spots = 0 OR r.spots IS NULL THEN 1 ELSE 0 END) AS empty_runs
+    """)[0]
+
+    s = query("""
+        MATCH (s:SRARun)
+        WHERE s.qc_pass IS NOT NULL
+        RETURN
+            count(s)                                                  AS runs_processed,
+            sum(CASE WHEN s.qc_pass = 'PASS' THEN 1 ELSE 0 END)      AS qc_pass,
+            sum(CASE WHEN s.qc_pass = 'FAIL' THEN 1 ELSE 0 END)      AS qc_fail_real,
+            sum(CASE WHEN s.is_mtb  = 'No'   THEN 1 ELSE 0 END)      AS no_mtb,
+            sum(CASE WHEN s.is_mdr  = 'Yes'  THEN 1 ELSE 0 END)      AS mdr,
+            sum(CASE WHEN s.is_xdr  = 'Yes'  THEN 1 ELSE 0 END)      AS xdr
+    """)[0]
+
+    total_sra_runs    = sra["total_sra_runs"]
+    empty_runs        = sra["empty_runs"]
+    runs_processed    = s["runs_processed"]
+    qc_pass           = s["qc_pass"]
+    mdr               = s["mdr"]
+    real_runs         = total_sra_runs - empty_runs
+    failed_processing = max(0, real_runs - runs_processed)
+
+    return {
+        "total_biosamples" : bs["total_biosamples"],
+        "total_sra_runs"   : total_sra_runs,
+        "runs_processed"   : runs_processed,
+        "qc_pass"          : qc_pass,
+        "mdr"              : mdr,
+        "xdr"              : s["xdr"],
+        "mdr_rate"         : round(mdr / qc_pass * 100, 1) if qc_pass else 0,
+        "empty_runs"       : empty_runs,
+        "failed_processing": failed_processing,
+        "qc_fail"          : s["qc_fail_real"],
+        "no_mtb"           : s["no_mtb"],
+        "no_sra"           : bs["total_biosamples"] - total_sra_runs,
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -86,7 +142,7 @@ def get_cases_by_state() -> list[dict]:
                count(s) AS total,
                sum(CASE WHEN s.is_mdr = 'Yes' THEN 1 ELSE 0 END) AS mdr,
                sum(CASE WHEN s.is_xdr = 'Yes' THEN 1 ELSE 0 END) AS xdr,
-               l.lat  AS lat,
+               l.lat AS lat,
                l.lon AS lon
         ORDER BY total DESC
     """)
@@ -100,8 +156,8 @@ def get_resistance_profile() -> list[dict]:
     return query("""
         MATCH (s:SRARun)
         WHERE s.drtype IS NOT NULL AND s.drtype <> '' AND s.drtype <> 'Low_coverage'
-        RETURN 
-        CASE WHEN s.is_mtb = 'No' THEN 'No-Mtb' ELSE s.drtype END AS drtype,
+        RETURN
+            CASE WHEN s.is_mtb = 'No' THEN 'No-Mtb' ELSE s.drtype END AS drtype,
             count(s) AS count
         ORDER BY count DESC
     """)
@@ -123,7 +179,8 @@ def get_drug_resistance_counts() -> list[dict]:
 def get_top_dr_mutations(limit: int = 20) -> list[dict]:
     return query("""
         MATCH (s:SRARun)-[r:HAS_MUTATION]->(m:Mutation)
-        WHERE m.variant_class = 'dr_variant' AND m.gene IS NOT NULL AND m.gene <> ''
+        WHERE m.variant_class = 'dr_variant'
+          AND m.gene IS NOT NULL AND m.gene <> ''
         RETURN m.gene AS gene, m.aa_change AS aa_change,
                m.drug AS drug, m.who_confidence AS who_confidence,
                count(s) AS sample_count
@@ -133,23 +190,41 @@ def get_top_dr_mutations(limit: int = 20) -> list[dict]:
 
 
 @st.cache_data(ttl=3600)
-def get_mutation_network(min_samples: int = 5) -> dict:
-    """Returns nodes + edges for the mutation-drug network."""
-    edges = query("""
-        MATCH (m:Mutation)-[r:CONFERS_RESISTANCE]->(d:Drug)
-        WHERE m.variant_class = 'dr_variant'
-        MATCH (s:SRARun)-[:HAS_MUTATION]->(m)
+def get_mutation_network(min_samples: int = 5) -> list[dict]:
+    """
+    Returns nodes + edges for the mutation-drug network.
+    Uses HAS_MUTATION + RESISTANT_TO (actual schema) instead of CONFERS_RESISTANCE.
+    """
+    return query("""
+        MATCH (s:SRARun)-[:HAS_MUTATION]->(m:Mutation),
+              (s)-[:RESISTANT_TO]->(d:Drug)
+        WHERE m.drug = d.name
+          AND m.variant_class = 'dr_variant'
         WITH m, d, count(s) AS n
         WHERE n >= $min_samples
-        RETURN m.mutation_id AS mut_id,
-               m.gene AS gene,
-               m.aa_change AS aa_change,
-               d.name AS drug,
-               d.drug_class AS drug_class,
-               n AS sample_count
+        RETURN m.mutation_id  AS mut_id,
+               m.gene         AS gene,
+               m.aa_change    AS aa_change,
+               d.name         AS drug,
+               d.drug_class   AS drug_class,
+               n              AS sample_count
         ORDER BY n DESC
     """, {"min_samples": min_samples})
-    return edges
+
+
+# ══════════════════════════════════════════════════════════════════════
+# CLUSTERS
+# ══════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=3600)
+def get_clusters() -> list[dict]:
+    return query("""
+        MATCH (s:SRARun)-[:IN_CLUSTER]->(c:Cluster)
+        RETURN c.cluster_id AS cluster_id,
+               c.size       AS size,
+               collect(s.run_id) AS samples,
+               sum(CASE WHEN s.is_mdr = 'Yes' THEN 1 ELSE 0 END) AS mdr_count
+        ORDER BY size DESC
+    """)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -184,93 +259,23 @@ def get_samples_table(
         OPTIONAL MATCH (s)-[:BELONGS_TO]->(lin:Lineage)
         OPTIONAL MATCH (s)-[:DETECTED_IN]->(t:TimePoint)
         {where_str}
-        RETURN s.run_id      AS sample_id,
-               s.drtype         AS drtype,
-               s.lineage        AS lineage,
-               s.sub_lineage    AS sub_lineage,
-               s.is_mdr         AS is_mdr,
-               s.is_xdr         AS is_xdr,
-               s.resistant_drugs AS resistant_drugs,
-               s.median_depth   AS median_depth,
-               s.host_sex       AS host_sex,
-               s.host_age       AS host_age,
-               s.host_disease   AS host_disease,
+        RETURN s.run_id           AS sample_id,
+               s.drtype           AS drtype,
+               s.lineage          AS lineage,
+               s.sub_lineage      AS sub_lineage,
+               s.is_mdr           AS is_mdr,
+               s.is_xdr           AS is_xdr,
+               s.resistant_drugs  AS resistant_drugs,
+               s.median_depth     AS median_depth,
+               s.host_sex         AS host_sex,
+               s.host_age         AS host_age,
+               s.host_disease     AS host_disease,
                s.isolation_source AS isolation_source,
-               l.state          AS state,
-               s.collection_date AS collection_date
+               l.state            AS state,
+               s.collection_date  AS collection_date
         ORDER BY s.run_id
         LIMIT 2000
     """, params)
-
-
-
-# ══════════════════════════════════════════════════════════════════════
-# DATA OVERVIEW — funnel (BioSamples → SRA → processed → QC pass)
-# ══════════════════════════════════════════════════════════════════════
-@st.cache_data(ttl=3600)
-def get_data_overview() -> dict:
-    """
-    Fully dynamic funnel — all counts queried live from Neo4j.
-
-    Schema:
-      (:BioSample) -[:HAS_RUN]-> (:SRARun {spots, has_data})
-      (:SRARun {run_id, spots, qc_pass, is_mdr, is_xdr, drtype, ...})
-    """
-
-    # ── BioSample level ───────────────────────────────────────────────
-    bs = query("""
-        MATCH (b:BioSample)
-        RETURN count(b) AS total_biosamples
-    """)[0]
-
-    # ── SRARun level ──────────────────────────────────────────────────
-    sra = query("""
-        MATCH (r:SRARun)
-        RETURN
-            count(r)                                                        AS total_sra_runs,
-            sum(CASE WHEN r.spots = 0 OR r.spots IS NULL THEN 1 ELSE 0 END) AS empty_runs
-    """)[0]
-
-    # ── TB-Profiler level — only runs where TB-Profiler produced a result ──
-    # No-Mtb = lineage starts with 'La' (M. africanum, etc.) — not M. tuberculosis
-    s = query("""
-        MATCH (s:SRARun)
-        WHERE s.qc_pass IS NOT NULL
-        RETURN
-            count(s)                                                  AS runs_processed,
-            sum(CASE WHEN s.qc_pass = 'PASS' THEN 1 ELSE 0 END)      AS qc_pass,
-            sum(CASE WHEN s.qc_pass = 'FAIL' THEN 1 ELSE 0 END)      AS qc_fail_real,
-            sum(CASE WHEN s.is_mtb  = 'No'   THEN 1 ELSE 0 END)      AS no_mtb,
-            sum(CASE WHEN s.is_mdr  = 'Yes'  THEN 1 ELSE 0 END)      AS mdr,
-            sum(CASE WHEN s.is_xdr  = 'Yes'  THEN 1 ELSE 0 END)      AS xdr
-    """)[0]
-
-    total_biosamples = bs["total_biosamples"]
-    total_sra_runs   = sra["total_sra_runs"]
-    empty_runs          = sra["empty_runs"]
-    runs_processed      = s["runs_processed"]
-    qc_pass             = s["qc_pass"]
-    mdr                 = s["mdr"]
-
-    # Runs with actual data (spots > 0) that TB-Profiler never finished
-    real_runs         = total_sra_runs - empty_runs
-    failed_processing = max(0, real_runs - runs_processed)
-
-    return {
-        "total_biosamples": total_biosamples,
-        "total_sra_runs":   total_sra_runs,
-        "runs_processed":      runs_processed,
-        "qc_pass":             qc_pass,
-        "mdr":                 mdr,
-        "xdr":                 s["xdr"],
-        "mdr_rate":            round(mdr / qc_pass * 100, 1) if qc_pass else 0,
-        "empty_runs":          empty_runs,
-        "failed_processing":   failed_processing,
-        "qc_fail":             s["qc_fail_real"],
-        "no_mtb":              s["no_mtb"],
-        "no_sra":              total_biosamples - total_sra_runs,
-    }
-
 
 
 # ══════════════════════════════════════════════════════════════════════
