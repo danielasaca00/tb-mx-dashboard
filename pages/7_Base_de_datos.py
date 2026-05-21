@@ -180,7 +180,7 @@ if run_btn and user_query.strip():
     except Exception as e:
         st.error(f"Error en la consulta: {e}")
 st.markdown("")
-    st.link_button("Conoce más sobre Neo4j →", "https://neo4j.com/", type="secondary")
+st.link_button("Conoce más sobre Neo4j →", "https://neo4j.com/", type="secondary")
 
 # ── Example queries ───────────────────────────────────────────────────
 st.markdown("<div class='section-header'>Consultas de ejemplo</div>", unsafe_allow_html=True)
