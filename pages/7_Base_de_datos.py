@@ -131,12 +131,55 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+# ── Sandbox de consultas ──────────────────────────────────────────────
+st.markdown("<div class='section-header'>Ejecutar consulta Cypher</div>", 
+            unsafe_allow_html=True)
 
+st.markdown("""
+<p style='color:#4a6278;font-size:0.9rem;line-height:1.7'>
+    Escribe una consulta Cypher de solo lectura (<code>MATCH</code>) 
+    para explorar el grafo directamente.
+</p>
+""", unsafe_allow_html=True)
+
+default_query = """MATCH (s:SRARun)-[:RESISTANT_TO]->(d:Drug)
+RETURN d.name AS drug, count(s) AS samples
+ORDER BY samples DESC
+LIMIT 10"""
+
+user_query = st.text_area(
+    "Consulta Cypher",
+    value=default_query,
+    height=120,
+    label_visibility="collapsed"
+)
+
+col_run, col_info = st.columns([1, 5])
+with col_run:
+    run_btn = st.button("▶ Ejecutar", type="primary", use_container_width=True)
+with col_info:
+    st.markdown(
+        "<p style='color:#7A9A8A;font-size:0.78rem;padding-top:8px'>"
+        "Solo se permiten consultas de lectura (MATCH). "
+        "Las operaciones de escritura están bloqueadas.</p>",
+        unsafe_allow_html=True
+    )
+
+if run_btn and user_query.strip():
+    try:
+        from db import query as run_query
+        with st.spinner("Ejecutando..."):
+            results = run_query(user_query)
+        if results:
+            st.dataframe(pd.DataFrame(results), use_container_width=True)
+            st.caption(f"{len(results)} resultado(s)")
+        else:
+            st.info("La consulta no devolvió resultados.")
+    except ValueError as e:
+        st.error(f"⛔ Operación no permitida: {e}")
+    except Exception as e:
+        st.error(f"Error en la consulta: {e}")
 st.markdown("")
-col1, col2 = st.columns([1, 1])
-with col1:
-    st.link_button("Abrir Neo4j Browser →", "https://browser.neo4j.io", type="primary")
-with col2:
     st.link_button("Conoce más sobre Neo4j →", "https://neo4j.com/", type="secondary")
 
 # ── Example queries ───────────────────────────────────────────────────
