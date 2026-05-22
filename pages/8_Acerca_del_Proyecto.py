@@ -36,7 +36,7 @@ st.markdown("""
     <b>Dr. Giuseppe Pirrò — Colaborador Internacional</b><br>
     &nbsp;&nbsp;• Profesor Asociado, Ciencias de la Computación, Università della Calabria, Italia<br>
     &nbsp;&nbsp;• Departamento DEMACS (Ingegneria Informatica, Modellistica, Elettronica e Sistemistica)<br>
-    &nbsp;&nbsp;• Áreas: Web Semántica, Bases de datos de grafos, Knowledge Graphs, Sistemas distribuidos<br><br>
+    &nbsp;&nbsp;• Áreas: Web Semántica, Bases de datos orientado a grafos, Knowledge Graphs, Sistemas distribuidos<br><br>
 
     <p style='color:#4a6278;font-size:1rem;line-height:1.9'>
     <b>Ing. Daniela Santana Camacho — Desarrollo y análisis de datos</b><br>
@@ -52,7 +52,7 @@ st.markdown("""
     • <a href='https://www.ncbi.nlm.nih.gov/' target='_blank' style='color:#2D6A4F;text-decoration:underline;'>NCBI</a>: Recopilación de muestras y genomas<br>
     • <a href='https://github.com/jodyphelan/TBProfiler' target='_blank' style='color:#2D6A4F;text-decoration:underline;'>TB-Profiler</a>: Análisis genómico<br>
     • <a href='https://www.who.int/publications/i/item/9789240082410' target='_blank' style='color:#2D6A4F;text-decoration:underline;'>Catálogo de mutaciones de la OMS</a>: Clasificación de mutaciones y farmacorresistencia<br>
-    • <a href='https://neo4j.com/' target='_blank' style='color:#2D6A4F;text-decoration:underline;'>Neo4j</a>: Base de datos de grafos<br>
+    • <a href='https://neo4j.com/' target='_blank' style='color:#2D6A4F;text-decoration:underline;'>Neo4j</a>: Base de datos orientada a grafos<br>
     • <a href='https://streamlit.io/' target='_blank' style='color:#2D6A4F;text-decoration:underline;'>Streamlit</a>: Framework de desarrollo web
     </p>
 """, unsafe_allow_html=True)
